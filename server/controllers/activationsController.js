@@ -4,6 +4,7 @@ const Activations = require("../models").Activations;
 const Cardsdetails = require("../models").Cardsdetails;
 const Dealers = require("../models").Dealers;
 const Users = require("../models").Users;
+const Denominations = require("../models").Denominations;
 const { validate } = require("../models/activations");
 const generateActivationNumber = require("../services/generateActivationNumber");
 
@@ -72,6 +73,13 @@ const activationsCrontroller = {
         {
           model: Cardsdetails,
           as: "cardsdetails",
+          include: [
+            {
+              model: Denominations,
+              as: "denominations",
+              attributes: ["id", "label"],
+            },
+          ],
         },
       ],
       order: [["createdAt", "DESC"]],
