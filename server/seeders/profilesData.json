@@ -1,0 +1,18 @@
+[
+  {
+    "profilename": "admin",
+    "status": true
+  },
+  {
+    "profilename": "warehouse",
+    "status": true
+  },
+  {
+    "profilename": "accounting",
+    "status": true
+  },
+  {
+    "profilename": "billing",
+    "status": true
+  }
+]

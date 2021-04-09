@@ -1,0 +1,101 @@
+[
+  {
+    "menuname": "Create SN",
+    "pathname": "cardsload.php",
+    "description": "To input batch and serial numbers and create activation number",
+    "status": true
+  },
+  {
+    "menuname": "View",
+    "pathname": "view.php",
+    "description": "To view activation number with corresponding batch and serial numbers and Total number of pins and cards.",
+    "status": true
+  },
+  {
+    "menuname": "Correct",
+    "pathname": "correction.php",
+    "description": "To correct errors that may occured in inputing batch and serial numbers in activation form",
+    "status": true
+  },
+  {
+    "menuname": "Validate",
+    "pathname": "w_validation.php",
+    "description": "To validate that batch and serial numbers inputted in activation from are correct done by a Warehouse Clerk",
+    "status": true
+  },
+  {
+    "menuname": "Validate",
+    "pathname": "f_validation.php",
+    "description": "To validate that batch and serial numbers inputted in activation by a Warehouse Clerk are correct  done by an Inventory accountant",
+    "status": true
+  },
+  {
+    "menuname": "Activation on IN",
+    "pathname": "vouchercards_batch.php",
+    "description": "",
+    "status": false
+  },
+  {
+    "menuname": "Create HIA",
+    "pathname": "createhia.php",
+    "description": "To create HIA file",
+    "status": true
+  },
+  {
+    "menuname": "Send HIA File",
+    "pathname": "sendhia.php",
+    "description": "To send to CCC Batch HIA file",
+    "status": false
+  },
+  {
+    "menuname": "Check",
+    "pathname": "activcheck.php",
+    "description": "",
+    "status": true
+  },
+  {
+    "menuname": "Validate",
+    "pathname": "b_validation.php",
+    "description": "To valid after checking that all serial numbers on activation form  have been activated",
+    "status": true
+  },
+  {
+    "menuname": "Search",
+    "pathname": "search.php",
+    "description": "",
+    "status": true,
+    "profile_type": "general"
+  },
+  {
+    "menuname": "Print",
+    "pathname": "printoutactform.php",
+    "description": "To print out the activation form",
+    "status": true,
+    "profile_type": "general"
+  },
+  {
+    "menuname": "Reports",
+    "pathname": "reports.php",
+    "description": "Reports ",
+    "status": true,
+    "profile_type": "general"
+  },
+  {
+    "menuname": "Create Batch",
+    "pathname": "createhiabatch.php",
+    "description": "To create HIA file for one batch",
+    "status": true
+  },
+  {
+    "menuname": "Download",
+    "pathname": "downloadhia.php",
+    "description": "To download hia file",
+    "status": true
+  },
+  {
+    "menuname": "Change Password",
+    "pathname": "changepwdlogon.php",
+    "description": "change your own password",
+    "status": false
+  }
+]
