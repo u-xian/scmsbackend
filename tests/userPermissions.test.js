@@ -148,3 +148,70 @@ describe("account changes apply to tokens already given", () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe("a password change ends every session", () => {
+  const login = (username, password) => api().post("/api/v1/auth").send({ username, password });
+  const changePassword = (user, oldpassword, newpassword) =>
+    api()
+      .put(`/api/v1/auth/${user.id}`)
+      .send({ oldpassword, newpassword, confirmpassword: newpassword });
+
+  it("tokens given before the change stop working; a new login works", async () => {
+    const { user, password } = await createUser();
+    const first = (await login(user.username, password)).body.statusMessage;
+    const second = (await login(user.username, password)).body.statusMessage;
+    await api().get("/api/v1/dealers").set("x-auth-token", first).expect(200);
+
+    await changePassword(user, password, "BrandNew123").expect(200);
+
+    for (const oldToken of [first, second]) {
+      const res = await api().get("/api/v1/dealers").set("x-auth-token", oldToken);
+      expect(res.status).toBe(401);
+      expect(res.text).toMatch(/password was changed/);
+    }
+
+    const fresh = (await login(user.username, "BrandNew123")).body.statusMessage;
+    await api().get("/api/v1/dealers").set("x-auth-token", fresh).expect(200);
+  });
+
+  it("each change ends the tokens of the previous password", async () => {
+    const { user, password } = await createUser();
+    await changePassword(user, password, "Second123").expect(200);
+    const token = (await login(user.username, "Second123")).body.statusMessage;
+    await changePassword(user, "Second123", "Third1234").expect(200);
+    expect((await api().get("/api/v1/dealers").set("x-auth-token", token)).status).toBe(401);
+    expect((await db.Users.scope("withPassword").findByPk(user.id)).token_version).toBe(2);
+  });
+
+  it("a failed change does not end the sessions", async () => {
+    const { user, password } = await createUser();
+    const token = (await login(user.username, password)).body.statusMessage;
+    await changePassword(user, "WrongOld123", "BrandNew123").expect(401);
+    await api().get("/api/v1/dealers").set("x-auth-token", token).expect(200);
+  });
+
+  it("tokens made before token_version existed still work until a change", async () => {
+    const { user } = await createUser();
+    const { tv, ...withoutVersion } = { userid: user.id, profileId: user.profil_id, tv: 0 };
+    const generateAuthToken = require("../server/services/generateAuthenticationToken");
+    const legacy = generateAuthToken(withoutVersion);
+    await api().get("/api/v1/dealers").set("x-auth-token", legacy).expect(200);
+  });
+
+  it("a disabled then enabled user does not get the old sessions back", async () => {
+    const { user: adminUser } = await createUser({ profil_id: PROFILES.ADMIN });
+    const { user, password } = await createUser();
+    const token = (await login(user.username, password)).body.statusMessage;
+    const setStatus = (status) =>
+      api()
+        .put(`/api/v1/user/updatestatus/${user.id}`)
+        .set("x-auth-token", tokenForUser(adminUser))
+        .send({ status });
+
+    await setStatus(false).expect(200);
+    await setStatus(true).expect(200);
+    expect((await api().get("/api/v1/dealers").set("x-auth-token", token)).status).toBe(401);
+    const fresh = (await login(user.username, password)).body.statusMessage;
+    await api().get("/api/v1/dealers").set("x-auth-token", fresh).expect(200);
+  });
+});

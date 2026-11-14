@@ -25,14 +25,22 @@ module.exports = (sequelize, DataTypes) => {
       first_login_flag: DataTypes.BOOLEAN,
       profil_id: DataTypes.INTEGER,
       expired_at: DataTypes.DATE,
+      // Increased at each password change: tokens with an older value are
+      // refused (see middleware/auth.js).
+      token_version: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
     },
     {
       sequelize,
       modelName: "Users",
       // Never return the password hash unless asked for explicitly with
       // Users.scope("withPassword") (login and password change only).
+      // token_version is internal too.
       defaultScope: {
-        attributes: { exclude: ["password"] },
+        attributes: { exclude: ["password", "token_version"] },
       },
       scopes: {
         withPassword: {

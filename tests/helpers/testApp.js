@@ -28,6 +28,7 @@ const tokenForUser = (user) =>
     userid: user.id,
     profileId: user.profil_id,
     username: user.username,
+    tv: user.token_version ?? 0,
   });
 
 const inDays = (days) => {

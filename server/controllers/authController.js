@@ -86,6 +86,7 @@ const authCrontroller = {
       profileId: user.profil_id,
       username: user.username,
       first_login_flag: user.first_login_flag,
+      tv: user.token_version,
       usermenus: menus,
       userdefaultmenu: defaultmenu,
       resetType: 4,
@@ -99,6 +100,7 @@ const authCrontroller = {
     expired password (status 3) and for a normal change (resetType 4).
     The user proves who they are with their current password.
     Body: { oldpassword, newpassword, confirmpassword, resetType? }
+    All tokens given before the change stop working (token_version).
     resetType is accepted for compatibility but no longer changes anything:
     every successful change clears the first login flag and sets a new
     expiry date 30 days ahead.
@@ -125,10 +127,13 @@ const authCrontroller = {
     const expiringDate = new Date();
     expiringDate.setDate(expiringDate.getDate() + PASSWORD_VALIDITY_DAYS);
 
+    // A new token_version ends every session opened with the old password,
+    // including the caller's own: they log in again with the new password.
     await user.update({
       password: await encryptingData(req.body.newpassword),
       first_login_flag: false,
       expired_at: expiringDate,
+      token_version: Sequelize.literal('"token_version" + 1'),
     });
 
     res

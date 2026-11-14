@@ -27,17 +27,31 @@ async function auth(req, res, next) {
 
   // The token is valid for an hour, but the account may have changed since
   // it was issued. Check it on every request, so that disabling or deleting
-  // a user, or changing their profile, takes effect immediately.
+  // a user, changing their profile or their password takes effect at once.
   try {
     const userId = Number(decoded.userid);
     const user = Number.isInteger(userId)
       ? await Users.findByPk(userId, {
-          attributes: ["id", "username", "status", "profil_id"],
+          attributes: [
+            "id",
+            "username",
+            "status",
+            "profil_id",
+            "token_version",
+          ],
         })
       : null;
 
     if (!user || user.status !== true)
       return unauthorized(res, "Access denied. Account disabled or removed.");
+
+    // Tokens given before the last password change carry an older version.
+    // (Tokens made before token_version existed count as version 0.)
+    if (Number(decoded.tv ?? 0) !== user.token_version)
+      return unauthorized(
+        res,
+        "Session ended because the password was changed. Log in again.",
+      );
 
     req.user = {
       ...decoded,

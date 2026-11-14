@@ -1,7 +1,7 @@
 require("dotenv").config();
 const _ = require("lodash");
 const Joi = require("joi");
-const { Op } = require("sequelize");
+const { Op, literal } = require("sequelize");
 const Users = require("../models").Users;
 const { PROFILES } = require("../middleware/requireProfile");
 const { validate } = require("../models/users");
@@ -101,7 +101,13 @@ const usersCrontroller = {
     if (!user) return res.status(404).send("User  not found");
     if (user.id === req.user.userid && value.status === false)
       return res.status(409).send("You cannot disable your own account");
-    await user.update({ status: value.status });
+    // Disabling also ends the user's sessions for good: if the account is
+    // enabled again, tokens given before stay invalid.
+    await user.update(
+      value.status
+        ? { status: true }
+        : { status: false, token_version: literal('"token_version" + 1') },
+    );
     user = await user.save();
     res
       .status(200)

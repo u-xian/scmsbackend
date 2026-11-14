@@ -28,6 +28,12 @@ activationsRoute.put(
 // They replace PUT /activations/confirm/:activationId and
 // PUT /activations/updatestatus/:activationId, which skipped the rules.
 activationsRoute.put(
+  "/activations/submit/:activationId",
+  auth,
+  activationsCrontroller.submit
+);
+
+activationsRoute.put(
   "/activations/approve/:activationId",
   auth,
   activationsCrontroller.approve

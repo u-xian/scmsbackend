@@ -153,30 +153,56 @@ describe("serial number rules", () => {
 });
 
 describe("overlaps already in the database", () => {
-  it("block the approval until the range is corrected", async () => {
+  const send = (id) =>
+    api().put(`/api/v1/activations/submit/${id}`).set("x-auth-token", submitter.token);
+  const approve = (who, id) =>
+    api().put(`/api/v1/activations/approve/${id}`).set("x-auth-token", who.token);
+
+  it("block sending a draft until the range is corrected", async () => {
+    const older = await newActivation();
+    const draft = await newActivation();
+    await addRange(range(older, "1000", "1999")).expect(200);
+    // Saved directly, as old data could be, bypassing the API check.
+    await db.Cardsdetails.create({ ...range(draft, "1500", "2500"), status: false });
+
+    const res = await send(draft);
+    expect(res.status).toBe(409);
+    expect(res.text).toMatch(/overlap the range 1000 to 1999.*Correct the range/);
+    expect((await db.Activations.findByPk(draft)).state).toBe("draft");
+
+    const [bad] = await db.Cardsdetails.findAll({ where: { act_id: draft } });
+    await updateRange(bad.id, range(draft, "2000", "2500")).expect(200);
+    await send(draft).expect(200);
+  });
+
+  it("block the approval; level 2 rejects and the submitter corrects", async () => {
     const older = await newActivation();
     const newer = await newActivation();
     await addRange(range(older, "1000", "1999")).expect(200);
-    // Saved directly, as old data could be, bypassing the API check.
+    await addRange(range(newer, "5000", "5999")).expect(200);
+    await send(newer).expect(200);
+    // Old data: an overlapping range already inside a sent activation.
     await db.Cardsdetails.create({ ...range(newer, "1500", "2500"), status: false });
 
-    const res = await api()
-      .put(`/api/v1/activations/approve/${newer}`)
-      .set("x-auth-token", accountant.token);
+    const res = await approve(accountant, newer);
     expect(res.status).toBe(409);
-    expect(res.text).toMatch(/overlap the range 1000 to 1999/);
+    expect(res.text).toMatch(/overlap the range 1000 to 1999.*Reject the activation/);
     expect((await db.Activations.findByPk(newer)).state).toBe("pending_level2");
 
-    // The fix: the submitter corrects the range, then it can be approved.
-    const [bad] = await db.Cardsdetails.findAll({ where: { act_id: newer } });
+    await api()
+      .put(`/api/v1/activations/reject/${newer}`)
+      .set("x-auth-token", accountant.token)
+      .send({ reason: "Range 1500-2500 overlaps another activation" })
+      .expect(200);
+    const bad = await db.Cardsdetails.findOne({
+      where: { act_id: newer, start_serialnumber: "1500" },
+    });
     await updateRange(bad.id, range(newer, "2000", "2500")).expect(200);
     await api()
-      .put(`/api/v1/activations/approve/${newer}`)
-      .set("x-auth-token", accountant.token)
+      .put(`/api/v1/activations/resubmit/${newer}`)
+      .set("x-auth-token", submitter.token)
       .expect(200);
-    await api()
-      .put(`/api/v1/activations/approve/${newer}`)
-      .set("x-auth-token", billing.token)
-      .expect(200);
+    await approve(accountant, newer).expect(200);
+    await approve(billing, newer).expect(200);
   });
 });

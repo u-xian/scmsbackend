@@ -1,7 +1,7 @@
 const _ = require("lodash");
 const Cardsdetails = require("../models").Cardsdetails;
 const { validate } = require("../models/cardsdetails");
-const { withPendingActivation } = require("../services/activationWorkflow");
+const { withEditableActivation } = require("../services/activationWorkflow");
 const {
   findOverlappingRange,
   describeOverlap,
@@ -9,9 +9,11 @@ const {
 const { catchAsyncController } = require("../utils/catchAsync");
 
 /*
-  Card ranges belong to an activation. They can be added, changed or removed
-  only while that activation is pending (waiting for level 2), by its
-  submitter or an admin (see server/services/activationWorkflow.js).
+  Card ranges belong to an activation. One activation can hold several
+  ranges, e.g. one per denomination (500 RWF, 1000 RWF, ...). They can be
+  added, changed or removed only while the activation is a draft or after
+  a rejection, by its submitter or an admin (see
+  server/services/activationWorkflow.js).
   Ranges of the same batch never overlap. Cards are activated only by the
   final approval of their activation.
 */
@@ -44,7 +46,7 @@ const cardsdetailsCrontroller = {
     const { error, value } = validate(req.body);
     if (error) return res.status(400).send(error.details[0].message);
 
-    const overlap = await withPendingActivation(
+    const overlap = await withEditableActivation(
       value.act_id,
       req.user,
       async (activation, transaction) => {
@@ -89,7 +91,7 @@ const cardsdetailsCrontroller = {
         .status(409)
         .send("Card details cannot be moved to another activation");
 
-    const overlap = await withPendingActivation(
+    const overlap = await withEditableActivation(
       carddetails.act_id,
       req.user,
       async (activation, transaction) => {
@@ -113,7 +115,7 @@ const cardsdetailsCrontroller = {
   delete: async (req, res) => {
     const carddetails = await Cardsdetails.findByPk(req.params.carddetailId);
     if (!carddetails) return res.status(404).send("Card details  not found");
-    await withPendingActivation(
+    await withEditableActivation(
       carddetails.act_id,
       req.user,
       (activation, transaction) => carddetails.destroy({ transaction }),
@@ -121,19 +123,13 @@ const cardsdetailsCrontroller = {
     res.status(204).send("Card details deleted");
   },
 
+  // Deletes all the card ranges of an activation; the activation stays.
   deleteByActivID: async (req, res) => {
-    const deleted = await withPendingActivation(
+    const deleted = await withEditableActivation(
       req.params.activId,
       req.user,
-      async (activation, transaction) => {
-        const carddetails = await Cardsdetails.findOne({
-          where: { act_id: activation.id },
-          transaction,
-        });
-        if (!carddetails) return false;
-        await carddetails.destroy({ transaction });
-        return true;
-      },
+      (activation, transaction) =>
+        Cardsdetails.destroy({ where: { act_id: activation.id }, transaction }),
     );
     if (!deleted) return res.status(404).send("Card details  not found");
     res.status(204).send("Card details deleted");

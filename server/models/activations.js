@@ -25,7 +25,7 @@ module.exports = (sequelize, DataTypes) => {
       userid: DataTypes.INTEGER,
       activated_at: DataTypes.DATE,
       deletedAt: DataTypes.DATE,
-      // Not stored: pending_level2, pending_level3, approved or rejected
+      // Not stored: draft, pending_level2, pending_level3, approved, rejected
       state: {
         type: DataTypes.VIRTUAL,
         get() {

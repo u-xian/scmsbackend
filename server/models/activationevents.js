@@ -3,6 +3,7 @@ const { Model } = require("sequelize");
 
 // Actions recorded in the history of an activation
 const ACTIONS = Object.freeze({
+  CREATED: "created",
   SUBMITTED: "submitted",
   RESUBMITTED: "resubmitted",
   APPROVED: "approved",

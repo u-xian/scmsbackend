@@ -28,7 +28,8 @@ const validateReject = (body) =>
     }),
   }).validate(body);
 
-const validateResubmit = (body) =>
+// Optional note when sending (or sending again) to level 2.
+const validateSend = (body) =>
   Joi.object({
     comment: Joi.string().trim().max(1000).allow(""),
   }).validate(body);
@@ -48,7 +49,7 @@ const activationsCrontroller = {
     const { error } = validate(req.body);
     if (error) return res.status(400).send(error.details[0].message);
 
-    const activation = await workflow.submit(req.body, req.user);
+    const activation = await workflow.create(req.body, req.user);
     done(res, "Activation created!", activation);
   },
   /*
@@ -101,12 +102,12 @@ const activationsCrontroller = {
     if (!activation) return res.status(404).send("Activation  not found");
     res.status(200).json({ data: activation });
   },
-  // Only the dealer can change, and only while the activation is pending.
+  // Only the dealer can change, and only as a draft or after a rejection.
   update: async (req, res) => {
     const { error } = validate(req.body);
     if (error) return res.status(400).send(error.details[0].message);
 
-    await workflow.withPendingActivation(
+    await workflow.withEditableActivation(
       req.params.activationId,
       req.user,
       (activation, transaction) =>
@@ -134,8 +135,19 @@ const activationsCrontroller = {
     );
     done(res, "Activation rejected!", activation);
   },
+  submit: async (req, res) => {
+    const { error, value } = validateSend(req.body);
+    if (error) return res.status(400).send(error.details[0].message);
+
+    const activation = await workflow.submit(
+      req.params.activationId,
+      req.user,
+      value.comment,
+    );
+    done(res, "Activation sent to level 2!", activation);
+  },
   resubmit: async (req, res) => {
-    const { error, value } = validateResubmit(req.body);
+    const { error, value } = validateSend(req.body);
     if (error) return res.status(400).send(error.details[0].message);
 
     const activation = await workflow.resubmit(
@@ -145,7 +157,7 @@ const activationsCrontroller = {
     );
     done(res, "Activation sent again!", activation);
   },
-  // Pending or rejected only; its card ranges are deleted with it.
+  // Draft or rejected only; all its card ranges are deleted with it.
   delete: async (req, res) => {
     await workflow.deleteActivation(req.params.activationId, req.user);
     res.status(204).send("Activation deleted");
