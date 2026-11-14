@@ -2,6 +2,7 @@ const _ = require("lodash");
 const Comments = require("../models").Comments;
 const Users = require("../models").Users;
 const { validate } = require("../models/comments");
+const { catchAsyncController } = require("../utils/catchAsync");
 
 const commentsCrontroller = {
   create: async (req, res) => {
@@ -56,4 +57,4 @@ const commentsCrontroller = {
   },
 };
 
-module.exports = commentsCrontroller;
+module.exports = catchAsyncController(commentsCrontroller);

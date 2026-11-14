@@ -7,6 +7,7 @@ const Users = require("../models").Users;
 const Denominations = require("../models").Denominations;
 const { validate } = require("../models/activations");
 const generateActivationNumber = require("../services/generateActivationNumber");
+const { catchAsyncController } = require("../utils/catchAsync");
 
 const activationsCrontroller = {
   create: async (req, res) => {
@@ -111,7 +112,7 @@ const activationsCrontroller = {
     let activation = await Activations.findByPk(req.params.activationId);
     if (!activation) return res.status(404).send("Activation  not found");
     if (level === 3) {
-      activation.update({ confirmation_lvl2: confirmStatus });
+      await activation.update({ confirmation_lvl2: confirmStatus });
     }
     if (level === 4 && confirmStatus === 2) {
       await activation.update({ confirmation_lvl3: confirmStatus });
@@ -154,4 +155,4 @@ const activationsCrontroller = {
   },
 };
 
-module.exports = activationsCrontroller;
+module.exports = catchAsyncController(activationsCrontroller);

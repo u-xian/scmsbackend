@@ -1,13 +1,14 @@
 const _ = require("lodash");
 const Cardsdetails = require("../models").Cardsdetails;
 const { validate } = require("../models/cardsdetails");
+const { catchAsyncController } = require("../utils/catchAsync");
 
 const cardsdetailsCrontroller = {
   create: async (req, res) => {
     const { error } = validate(req.body);
     if (error) return res.status(400).send(error.details[0].message);
 
-    const card = await Cardsdetails.findFirst({
+    const card = await Cardsdetails.findOne({
       where: {
         batch: req.body.batch,
         start_serialnumber: req.body.start_serialnumber,
@@ -98,9 +99,9 @@ const cardsdetailsCrontroller = {
       where: { act_id: req.params.activId },
     });
     if (!carddetails) return res.status(404).send("Card details  not found");
-    carddetails.destroy();
+    await carddetails.destroy();
     res.status(204).send("Card details deleted");
   },
 };
 
-module.exports = cardsdetailsCrontroller;
+module.exports = catchAsyncController(cardsdetailsCrontroller);

@@ -3,6 +3,7 @@ const Sequelize = require("sequelize");
 const Op = Sequelize.Op;
 const AccessMenu = require("../models").AccessMenu;
 const { validate } = require("../models/accessmenu");
+const { catchAsyncController } = require("../utils/catchAsync");
 
 const accessmenusCrontroller = {
   create: async (req, res) => {
@@ -82,4 +83,4 @@ const accessmenusCrontroller = {
   },
 };
 
-module.exports = accessmenusCrontroller;
+module.exports = catchAsyncController(accessmenusCrontroller);

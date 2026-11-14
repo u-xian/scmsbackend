@@ -42,8 +42,13 @@ REST API for a scratch card management system. Dealers ask for card activations,
 npm install
 cp .env.example .env        # then edit .env with your own values
 npm run db:setup            # creates the database, runs the migrations, loads the seed data
+npm run create-admin -- <username> "<full name>" <email>   # first admin, see below
 npm start
 ```
+
+Only an admin can create users through the API, so a new database needs one admin created from the command line. `create-admin` gives it the `defaultPassword`; it must be changed at the first login.
+
+The API does not start when `jwtPrivateKey` is missing.
 
 The API answers on `http://localhost:8000/api/v1/` (or the `PORT` you set).
 
@@ -71,6 +76,7 @@ Set these in `.env`:
 | -------------------------- | -------------------------------------------------- |
 | `npm start`                | Starts the API                                     |
 | `npm run dev`              | Starts the API and restarts it when a file changes |
+| `npm run create-admin`     | Creates an admin user (see Setup)                  |
 | `npm run db:create`        | Creates the database                               |
 | `npm run migrate`          | Creates or updates the tables                      |
 | `npm run seed`             | Loads the starting data (profiles, menus, access)  |
@@ -92,21 +98,37 @@ Log in with `POST /api/v1/auth`. Send the token you get back in the header of ev
 x-auth-token: <token>
 ```
 
-Login answers with a `status` number: `1` login worked (the `statusMessage` holds the token), `2` first login (the password must be changed), `3` password expired, `0` wrong username or password.
+Login answers with a `status` number: `1` login worked (the `statusMessage` holds the token), `2` first login (the password must be changed), `3` password expired (also when the user has no expiry date), `0` wrong username or password (HTTP 401) or disabled account (HTTP 403).
+
+With status `2` or `3` there is no token. The answer holds the `userId`; change the password with `PUT /api/v1/auth/:userId` (no token needed) and this body:
+
+```json
+{
+  "oldpassword": "current password",
+  "newpassword": "new password, 5 characters or more, different from the old one",
+  "confirmpassword": "same as newpassword"
+}
+```
+
+A successful change ends the first login state and makes the password valid for 30 days. `resetType` may still be sent but is no longer used. A wrong `oldpassword` answers 401, a disabled account 403, a missing or mismatching field 400.
+
+## Errors
+
+Errors never stop the server. Invalid input (for example a text where a numeric id is expected) answers `400 Invalid input`, a duplicate record `409`, anything unexpected `500 Internal server error`; the details are written to the server log only.
 
 ## Endpoints
 
-All paths start with `/api/v1`. "Token" means the `x-auth-token` header is required.
+All paths start with `/api/v1`. "Token" means the `x-auth-token` header is required; "admin" means the token must belong to a user with the admin profile. User data never includes the password hash.
 
 ### Authentication and users
 
 | Method | Path                         | Token | What it does                                                         |
 | ------ | ---------------------------- | ----- | -------------------------------------------------------------------- |
 | POST   | `/auth`                      | no    | Log in                                                               |
-| PUT    | `/auth/:userId`              | no    | Change the password (`resetType` 2 first login, 3 expired, 4 normal) |
+| PUT    | `/auth/:userId`              | no    | Change the password (needs the current password, see above)         |
 | GET    | `/user`                      | yes   | List users                                                           |
 | GET    | `/user/:userId`              | yes   | Get a user                                                           |
-| POST   | `/user`                      | no    | Create a user (the first password is `defaultPassword`)              |
+| POST   | `/user`                      | admin | Create a user (the first password is `defaultPassword`)              |
 | PUT    | `/user/:userId`              | yes   | Update a user                                                        |
 | PUT    | `/user/updatestatus/:userId` | yes   | Enable or disable a user                                             |
 | DELETE | `/user/:userId`              | yes   | Delete a user                                                        |
@@ -175,16 +197,18 @@ All paths start with `/api/v1`. "Token" means the `x-auth-token` header is requi
 ```
 app.js                  Express app
 bin/run.js              Starts the server
+bin/create-admin.js     Creates an admin user
 server/
   config/               Database settings (read from .env)
   controllers/          Request handlers
-  middleware/auth.js    Checks the token
+  middleware/           Token check, profile check, error handler
   migrations/           Table definitions
   models/               Sequelize models and Joi rules
   routes/               URLs
   seeders/              Starting data
   services/             Token, password and activation number helpers
-tests/                  Jest and Supertest tests
+  utils/catchAsync.js   Sends errors of async handlers to the error handler
+tests/                  Vitest and Supertest tests
 ```
 
 ## Tests

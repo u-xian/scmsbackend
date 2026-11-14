@@ -1,6 +1,7 @@
 const _ = require("lodash");
 const Denominations = require("../models").Denominations;
 const { validate } = require("../models/denominations");
+const { catchAsyncController } = require("../utils/catchAsync");
 
 const denominationsCrontroller = {
   create: async (req, res) => {
@@ -60,4 +61,4 @@ const denominationsCrontroller = {
   },
 };
 
-module.exports = denominationsCrontroller;
+module.exports = catchAsyncController(denominationsCrontroller);

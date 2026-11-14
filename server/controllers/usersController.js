@@ -3,6 +3,7 @@ const _ = require("lodash");
 const Users = require("../models").Users;
 const { validate } = require("../models/users");
 const encryptingData = require("../services/dataEncrypting");
+const { catchAsyncController } = require("../utils/catchAsync");
 
 const usersCrontroller = {
   create: async (req, res) => {
@@ -84,4 +85,4 @@ const usersCrontroller = {
   },
 };
 
-module.exports = usersCrontroller;
+module.exports = catchAsyncController(usersCrontroller);

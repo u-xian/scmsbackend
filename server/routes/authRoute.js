@@ -1,11 +1,12 @@
 const express = require("express");
-const auth = require("../middleware/auth");
 const authCrontroller = require("../controllers/authController");
 
 const authRoute = express.Router();
 
 authRoute.post("/auth", authCrontroller.auth);
 
-authRoute.put("/auth/:userId", auth, authCrontroller.resetPassword);
+// No token: users on their first login or with an expired password have none.
+// The current password is checked instead.
+authRoute.put("/auth/:userId", authCrontroller.resetPassword);
 
 module.exports = authRoute;

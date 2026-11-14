@@ -1,6 +1,7 @@
 const _ = require("lodash");
 const Mailreceivers = require("../models").Mailreceivers;
 const { validate } = require("../models/mailreceivers");
+const { catchAsyncController } = require("../utils/catchAsync");
 
 const mailreceiversCrontroller = {
   create: async (req, res) => {
@@ -59,4 +60,4 @@ const mailreceiversCrontroller = {
   },
 };
 
-module.exports = mailreceiversCrontroller;
+module.exports = catchAsyncController(mailreceiversCrontroller);

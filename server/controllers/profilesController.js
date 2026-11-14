@@ -1,6 +1,7 @@
 const _ = require("lodash");
 const Profiles = require("../models").Profiles;
 const { validate } = require("../models/profiles");
+const { catchAsyncController } = require("../utils/catchAsync");
 
 const profilesCrontroller = {
   create: async (req, res) => {
@@ -54,4 +55,4 @@ const profilesCrontroller = {
   },
 };
 
-module.exports = profilesCrontroller;
+module.exports = catchAsyncController(profilesCrontroller);
