@@ -78,6 +78,12 @@ db.Cardsdetails.belongsTo(db.Denominations, {
 });
 db.Denominations.hasMany(db.Cardsdetails, { foreignKey: "denom_id" });
 
+db.Activations.hasMany(db.ActivationEvents, {
+  as: "events",
+  foreignKey: "act_id",
+});
+db.ActivationEvents.belongsTo(db.Users, { as: "user", foreignKey: "userid" });
+
 db.Comments.belongsTo(db.Users, { as: "agents", foreignKey: "userid" });
 db.Users.hasMany(db.Comments, { foreignKey: "userid" });
 

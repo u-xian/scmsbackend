@@ -14,11 +14,11 @@ describe("errors no longer stop the server", () => {
   });
 
   it("answers 400 to an id that is not a number, and keeps running", async () => {
-    const res = await api().get("/api/v1/dealers/abc").set("x-auth-token", admin());
+    const res = await api().get("/api/v1/dealers/abc").set("x-auth-token", await admin());
     expect(res.status).toBe(400);
     expect(res.text).toBe("Invalid input");
 
-    const next = await api().get("/api/v1/dealers").set("x-auth-token", admin());
+    const next = await api().get("/api/v1/dealers").set("x-auth-token", await admin());
     expect(next.status).toBe(200);
   });
 
@@ -28,7 +28,7 @@ describe("errors no longer stop the server", () => {
       .mockRejectedValueOnce(new Error("connection lost"));
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    const res = await api().get("/api/v1/dealers").set("x-auth-token", admin());
+    const res = await api().get("/api/v1/dealers").set("x-auth-token", await admin());
     expect(res.status).toBe(500);
     expect(res.text).toBe("Internal server error");
     expect(log).toHaveBeenCalled();
@@ -40,13 +40,18 @@ describe("errors no longer stop the server", () => {
   it("answers 400 to a malformed JSON body", async () => {
     const res = await api()
       .post("/api/v1/dealers")
-      .set("x-auth-token", admin())
+      .set("x-auth-token", await admin())
       .set("content-type", "application/json")
       .send("{ not json");
     expect(res.status).toBe(400);
   });
 
   it("creates card details (findFirst replaced by findOne) and detects duplicates", async () => {
+    const token = await admin();
+    const activation = await api()
+      .post("/api/v1/activations")
+      .set("x-auth-token", token)
+      .send({ dealer_id: 1 });
     const card = {
       batch: `${TEST_PREFIX}B1`,
       start_serialnumber: "0001",
@@ -54,12 +59,12 @@ describe("errors no longer stop the server", () => {
       pins: 100,
       cards: 100,
       denom_id: 1,
-      act_id: 1,
+      act_id: activation.body.data.activId,
     };
-    const first = await api().post("/api/v1/carddetails").set("x-auth-token", admin()).send(card);
+    const first = await api().post("/api/v1/carddetails").set("x-auth-token", token).send(card);
     expect(first.status).toBe(200);
 
-    const duplicate = await api().post("/api/v1/carddetails").set("x-auth-token", admin()).send(card);
+    const duplicate = await api().post("/api/v1/carddetails").set("x-auth-token", token).send(card);
     expect(duplicate.body).toEqual({ error: "Card already exists" });
   });
 });

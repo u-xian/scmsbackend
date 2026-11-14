@@ -2,6 +2,7 @@
 const { Model } = require("sequelize");
 const Joi = require("joi");
 const generateActivationNumber = require("../services/generateActivationNumber");
+const { stateOf } = require("../services/activationState");
 module.exports = (sequelize, DataTypes) => {
   class Activations extends Model {
     /**
@@ -24,6 +25,13 @@ module.exports = (sequelize, DataTypes) => {
       userid: DataTypes.INTEGER,
       activated_at: DataTypes.DATE,
       deletedAt: DataTypes.DATE,
+      // Not stored: pending_level2, pending_level3, approved or rejected
+      state: {
+        type: DataTypes.VIRTUAL,
+        get() {
+          return stateOf(this);
+        },
+      },
     },
     {
       sequelize,
@@ -42,7 +50,9 @@ module.exports = (sequelize, DataTypes) => {
 function validateActivation(activation) {
   const schema = Joi.object({
     dealer_id: Joi.number().integer().required(),
-    userid: Joi.number().integer().required(),
+    // Accepted for compatibility but ignored: the submitter is the user of
+    // the token.
+    userid: Joi.number().integer(),
   });
 
   return schema.validate(activation);

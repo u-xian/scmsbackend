@@ -63,7 +63,7 @@ describe("POST /user is reserved to admins", () => {
   it("refuses a user who is not an admin", async () => {
     const res = await api()
       .post("/api/v1/user")
-      .set("x-auth-token", tokenFor(PROFILES.WAREHOUSE))
+      .set("x-auth-token", await tokenFor(PROFILES.WAREHOUSE))
       .send(newUserBody("zztest_warehouse"));
     expect(res.status).toBe(403);
     expect(await db.Users.findOne({ where: { username: "zztest_warehouse" } })).toBeNull();
@@ -72,7 +72,7 @@ describe("POST /user is reserved to admins", () => {
   it("lets an admin create a user", async () => {
     const res = await api()
       .post("/api/v1/user")
-      .set("x-auth-token", tokenFor(PROFILES.ADMIN))
+      .set("x-auth-token", await tokenFor(PROFILES.ADMIN))
       .send(newUserBody("zztest_byadmin"));
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe(1);
@@ -82,7 +82,7 @@ describe("POST /user is reserved to admins", () => {
 describe("the password hash is never returned", () => {
   it("GET /user/:userId has no password", async () => {
     const { user } = await createUser();
-    const res = await api().get(`/api/v1/user/${user.id}`).set("x-auth-token", tokenFor(PROFILES.ADMIN));
+    const res = await api().get(`/api/v1/user/${user.id}`).set("x-auth-token", await tokenFor(PROFILES.ADMIN));
     expect(res.status).toBe(200);
     expect(res.body.data.username).toBe(user.username);
     expect(res.body.data).not.toHaveProperty("password");
@@ -90,7 +90,7 @@ describe("the password hash is never returned", () => {
 
   it("GET /user has no password", async () => {
     await createUser();
-    const res = await api().get("/api/v1/user").set("x-auth-token", tokenFor(PROFILES.ADMIN));
+    const res = await api().get("/api/v1/user").set("x-auth-token", await tokenFor(PROFILES.ADMIN));
     expect(res.status).toBe(200);
     expect(res.body.data.length).toBeGreaterThan(0);
     for (const user of res.body.data) expect(user).not.toHaveProperty("password");
@@ -134,7 +134,7 @@ describe("password change (PUT /auth/:userId)", () => {
   it("takes a new user from first login to a working login, without a token", async () => {
     await api()
       .post("/api/v1/user")
-      .set("x-auth-token", tokenFor(PROFILES.ADMIN))
+      .set("x-auth-token", await tokenFor(PROFILES.ADMIN))
       .send({ ...newUserBody("zztest_firstlogin"), profil_id: PROFILES.BILLING })
       .expect(200);
 

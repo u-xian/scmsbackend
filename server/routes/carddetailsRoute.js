@@ -20,17 +20,9 @@ carddetailsRoute.put(
   carddetailsCrontroller.update
 );
 
-carddetailsRoute.put(
-  "/carddetails/updatestatus/:actId",
-  auth,
-  carddetailsCrontroller.updateStatusByActiv
-);
-
-carddetailsRoute.put(
-  "/carddetails/cardactivate/:carddetailId",
-  auth,
-  carddetailsCrontroller.updateCarddetailsStatus
-);
+// PUT /carddetails/updatestatus/:actId and PUT /carddetails/cardactivate/:id
+// were removed: they activated cards without approval. Cards are activated
+// by PUT /activations/approve/:activationId at the last level.
 
 carddetailsRoute.delete(
   "/carddetails/:carddetailId",

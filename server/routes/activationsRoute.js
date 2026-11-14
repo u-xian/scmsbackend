@@ -24,16 +24,25 @@ activationsRoute.put(
   activationsCrontroller.update
 );
 
+// Approval workflow (rules in server/services/activationWorkflow.js).
+// They replace PUT /activations/confirm/:activationId and
+// PUT /activations/updatestatus/:activationId, which skipped the rules.
 activationsRoute.put(
-  "/activations/confirm/:activationId",
+  "/activations/approve/:activationId",
   auth,
-  activationsCrontroller.updateConfirmation
+  activationsCrontroller.approve
 );
 
 activationsRoute.put(
-  "/activations/updatestatus/:activationId",
+  "/activations/reject/:activationId",
   auth,
-  activationsCrontroller.updateStatus
+  activationsCrontroller.reject
+);
+
+activationsRoute.put(
+  "/activations/resubmit/:activationId",
+  auth,
+  activationsCrontroller.resubmit
 );
 
 activationsRoute.delete(

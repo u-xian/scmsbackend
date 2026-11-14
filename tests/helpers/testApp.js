@@ -22,8 +22,13 @@ db.sequelize.options.logging = false;
 // Every user made by the tests starts with this prefix, so they can be removed.
 const TEST_PREFIX = "zztest_";
 
-const tokenFor = (profileId, userid = 999999) =>
-  generateAuthToken({ userid, profileId, username: `${TEST_PREFIX}token` });
+// Token of an existing user, as POST /auth would give it.
+const tokenForUser = (user) =>
+  generateAuthToken({
+    userid: user.id,
+    profileId: user.profil_id,
+    username: user.username,
+  });
 
 const inDays = (days) => {
   const date = new Date();
@@ -49,7 +54,27 @@ async function createUser(overrides = {}) {
   return { user, password };
 }
 
+// Creates an active user with the given profile and returns their token.
+async function tokenFor(profileId) {
+  const { user } = await createUser({ profil_id: profileId });
+  return tokenForUser(user);
+}
+
 async function cleanUp() {
+  const testUsers = await db.Users.findAll({
+    where: { username: { [Op.startsWith]: TEST_PREFIX } },
+    attributes: ["id"],
+  });
+  const activations = await db.Activations.findAll({
+    where: { userid: testUsers.map((u) => u.id) },
+    attributes: ["id"],
+    paranoid: false,
+  });
+  const actIds = activations.map((a) => a.id);
+  await db.Cardsdetails.destroy({ where: { act_id: actIds }, force: true });
+  await db.ActivationEvents.destroy({ where: { act_id: actIds } });
+  await db.Activations.destroy({ where: { id: actIds }, force: true });
+
   await db.Users.destroy({
     where: { username: { [Op.startsWith]: TEST_PREFIX } },
   });
@@ -65,6 +90,7 @@ module.exports = {
   PROFILES,
   TEST_PREFIX,
   tokenFor,
+  tokenForUser,
   createUser,
   cleanUp,
 };

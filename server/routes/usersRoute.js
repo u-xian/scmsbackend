@@ -19,10 +19,22 @@ usersRoute.post(
   usersCrontroller.create,
 );
 
+// Admins can edit anyone. Other users can edit their own details but not
+// their profile (checked in the controller).
 usersRoute.put("/user/:userId", auth, usersCrontroller.update);
 
-usersRoute.put("/user/updatestatus/:userId", auth, usersCrontroller.updateStatus);
+usersRoute.put(
+  "/user/updatestatus/:userId",
+  auth,
+  requireProfile(PROFILES.ADMIN),
+  usersCrontroller.updateStatus,
+);
 
-usersRoute.delete("/user/:userId", auth, usersCrontroller.delete);
+usersRoute.delete(
+  "/user/:userId",
+  auth,
+  requireProfile(PROFILES.ADMIN),
+  usersCrontroller.delete,
+);
 
 module.exports = usersRoute;

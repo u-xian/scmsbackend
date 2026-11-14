@@ -1,6 +1,9 @@
 require("dotenv").config();
 const _ = require("lodash");
+const Joi = require("joi");
+const { Op } = require("sequelize");
 const Users = require("../models").Users;
+const { PROFILES } = require("../middleware/requireProfile");
 const { validate } = require("../models/users");
 const encryptingData = require("../services/dataEncrypting");
 const { catchAsyncController } = require("../utils/catchAsync");
@@ -63,15 +66,42 @@ const usersCrontroller = {
 
     let user = await Users.findByPk(req.params.userId);
     if (!user) return res.status(404).send("User  not found");
+
+    // A user who is not an admin may only edit their own details, and may
+    // not change their profile (this is how they could become admin).
+    if (req.user.profileId !== PROFILES.ADMIN) {
+      if (user.id !== req.user.userid)
+        return res
+          .status(403)
+          .send("Access denied. You can only edit your own account.");
+      if (Number(req.body.profil_id) !== user.profil_id)
+        return res
+          .status(403)
+          .send("Access denied. Only an admin can change a profile.");
+    }
+
+    // Two accounts with the same username would make login ambiguous.
+    const sameUsername = await Users.findOne({
+      where: { username: req.body.username, id: { [Op.ne]: user.id } },
+    });
+    if (sameUsername) return res.status(409).send("Username already taken");
+
     await user.update(req.body, { fields: Object.keys(req.body) });
     res
       .status(200)
       .json({ data: { status: 1, statusMessage: "User updated!" } });
   },
   updateStatus: async (req, res) => {
+    const { error, value } = Joi.object({
+      status: Joi.boolean().required(),
+    }).validate(req.body);
+    if (error) return res.status(400).send(error.details[0].message);
+
     let user = await Users.findByPk(req.params.userId);
     if (!user) return res.status(404).send("User  not found");
-    await user.update({ status: req.body.status });
+    if (user.id === req.user.userid && value.status === false)
+      return res.status(409).send("You cannot disable your own account");
+    await user.update({ status: value.status });
     user = await user.save();
     res
       .status(200)
@@ -80,6 +110,8 @@ const usersCrontroller = {
   delete: async (req, res) => {
     let user = await Users.findByPk(req.params.userId);
     if (!user) return res.status(404).send("user  not found");
+    if (user.id === req.user.userid)
+      return res.status(409).send("You cannot delete your own account");
     await user.destroy();
     res.status(204).send("user deleted");
   },

@@ -52,7 +52,7 @@ const commentsCrontroller = {
   delete: async (req, res) => {
     let comment = await Comments.findByPk(req.params.commentId);
     if (!comment) return res.status(404).send("Comment  not found");
-    comment.destroy();
+    await comment.destroy();
     res.status(204).send("Comment deleted");
   },
 };

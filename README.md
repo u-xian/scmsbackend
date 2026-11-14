@@ -14,11 +14,11 @@ REST API for a scratch card management system. Dealers ask for card activations,
   - Create, list, update, enable or disable, delete
 - **Activations**
   - Create an activation for a dealer
-  - Approve or reject it at each approval level
+  - Approval workflow with strict rules: levels in order, a reason for each rejection, rejected activations can be sent again, full history
   - List the activations waiting for a given profile
 - **Card details**
   - Card ranges (batch, start and end serial number, number of cards and pins) attached to an activation
-  - Activate the cards of an activation
+  - The cards are activated by the final approval of their activation
 - **Comments and mail receivers**
 
 ## Tech stack
@@ -98,6 +98,8 @@ Log in with `POST /api/v1/auth`. Send the token you get back in the header of ev
 x-auth-token: <token>
 ```
 
+The account is checked on every request: when a user is disabled or deleted, their token stops working at once (401), and a profile change applies at once.
+
 Login answers with a `status` number: `1` login worked (the `statusMessage` holds the token), `2` first login (the password must be changed), `3` password expired (also when the user has no expiry date), `0` wrong username or password (HTTP 401) or disabled account (HTTP 403).
 
 With status `2` or `3` there is no token. The answer holds the `userId`; change the password with `PUT /api/v1/auth/:userId` (no token needed) and this body:
@@ -129,9 +131,9 @@ All paths start with `/api/v1`. "Token" means the `x-auth-token` header is requi
 | GET    | `/user`                      | yes   | List users                                                           |
 | GET    | `/user/:userId`              | yes   | Get a user                                                           |
 | POST   | `/user`                      | admin | Create a user (the first password is `defaultPassword`)              |
-| PUT    | `/user/:userId`              | yes   | Update a user                                                        |
-| PUT    | `/user/updatestatus/:userId` | yes   | Enable or disable a user                                             |
-| DELETE | `/user/:userId`              | yes   | Delete a user                                                        |
+| PUT    | `/user/:userId`              | yes   | Update a user. Non-admins: only their own account, profile unchanged |
+| PUT    | `/user/updatestatus/:userId` | admin | Enable or disable a user (`status`: true or false), not yourself     |
+| DELETE | `/user/:userId`              | admin | Delete a user, not yourself                                          |
 
 ### Profiles and menu access
 
@@ -162,28 +164,31 @@ All paths start with `/api/v1`. "Token" means the `x-auth-token` header is requi
 
 ### Activations
 
-| Method | Path                                      | Token | What it does                                 |
-| ------ | ----------------------------------------- | ----- | -------------------------------------------- |
-| POST   | `/activations`                            | yes   | Create an activation (`dealer_id`, `userid`) |
-| GET    | `/activations/activbyprofile/:profileId`  | yes   | Activations waiting for a profile (0 = all)  |
-| GET    | `/activations/:activationId`              | yes   | Get one activation                           |
-| PUT    | `/activations/:activationId`              | yes   | Update an activation                         |
-| PUT    | `/activations/confirm/:activationId`      | yes   | Approve or reject at an approval level       |
-| PUT    | `/activations/updatestatus/:activationId` | yes   | Change the status                            |
-| DELETE | `/activations/:activationId`              | yes   | Delete an activation                         |
+| Method | Path                                     | Token | What it does                                                  |
+| ------ | ---------------------------------------- | ----- | ------------------------------------------------------------- |
+| POST   | `/activations`                           | yes   | Submit an activation (`dealer_id`); the submitter is you      |
+| GET    | `/activations/activbyprofile/:profileId` | yes   | 3: waiting for level 2, 4: waiting for level 3, other: all    |
+| GET    | `/activations/:activationId`             | yes   | Get one activation with its history (`events`)                |
+| PUT    | `/activations/:activationId`             | yes   | Change the dealer (`dealer_id`) while the activation is open  |
+| PUT    | `/activations/approve/:activationId`     | yes   | Approve at your level                                         |
+| PUT    | `/activations/reject/:activationId`      | yes   | Reject at your level, `reason` required                       |
+| PUT    | `/activations/resubmit/:activationId`    | yes   | Send a rejected activation again, optional `comment`          |
+| DELETE | `/activations/:activationId`             | yes   | Delete an activation while it is open                         |
+
+Activations have a `state` field: `pending_level2`, `pending_level3`, `approved` or `rejected`. See [Approval workflow](#approval-workflow).
 
 ### Card details
 
-| Method | Path                                      | Token | What it does                         |
-| ------ | ----------------------------------------- | ----- | ------------------------------------ |
-| GET    | `/carddetails`                            | yes   | List card ranges                     |
-| POST   | `/carddetails`                            | yes   | Add a card range to an activation    |
-| GET    | `/carddetails/:carddetailId`              | yes   | Get one range                        |
-| PUT    | `/carddetails/:carddetailId`              | yes   | Update a range                       |
-| PUT    | `/carddetails/cardactivate/:carddetailId` | yes   | Activate one range                   |
-| PUT    | `/carddetails/updatestatus/:actId`        | yes   | Activate all ranges of an activation |
-| DELETE | `/carddetails/:carddetailId`              | yes   | Delete a range                       |
-| DELETE | `/carddetails/deletebyactivId/:activId`   | yes   | Delete all ranges of an activation   |
+| Method | Path                                    | Token | What it does                           |
+| ------ | --------------------------------------- | ----- | -------------------------------------- |
+| GET    | `/carddetails`                          | yes   | List card ranges                       |
+| POST   | `/carddetails`                          | yes   | Add a card range to an open activation |
+| GET    | `/carddetails/:carddetailId`            | yes   | Get one range                          |
+| PUT    | `/carddetails/:carddetailId`            | yes   | Update a range of an open activation   |
+| DELETE | `/carddetails/:carddetailId`            | yes   | Delete a range of an open activation   |
+| DELETE | `/carddetails/deletebyactivId/:activId` | yes   | Delete one range of an open activation |
+
+"Open" means waiting for level 2 or rejected, and the change is made by the submitter or an admin.
 
 ### Comments
 
@@ -191,6 +196,30 @@ All paths start with `/api/v1`. "Token" means the `x-auth-token` header is requi
 | ---------------- | ---------------------- | ----- | ------------------- |
 | GET, POST        | `/comments`            | yes   | List, create        |
 | GET, PUT, DELETE | `/comments/:commentId` | yes   | Get, update, delete |
+
+## Approval workflow
+
+```
+submit ──> pending_level2 ──approve (accounting)──> pending_level3 ──approve (billing)──> approved
+                │                                       │                                (cards active)
+                └──reject + reason──> rejected <──reject + reason──┘
+                                         │
+                     resubmit ───────────┘──> pending_level2
+```
+
+- **Levels go in order.** Level 2 is the accounting profile, level 3 the billing profile. The server finds the level from the user's profile; the request cannot choose it. A level can only decide on an activation waiting for it, and only once. Other profiles (admin, warehouse) cannot approve or reject.
+- **No self-approval.** Nobody approves or rejects an activation they submitted.
+- **No empty approval.** An activation without card details cannot be approved.
+- **A rejection needs a reason** (`reason`, 5 to 1000 characters). The activation goes back to the submitter.
+- **A rejected activation can be sent again** by its submitter or an admin, after changes if needed. It starts again at level 2.
+- **Open activations only can change.** The dealer, the card ranges, and deletion are allowed only while the activation waits for level 2 or is rejected, and only for the submitter or an admin. Card ranges cannot move to another activation.
+- **Final approval is one transaction.** The cards are activated and the activation is marked approved together, or nothing is saved.
+- **One decision at a time.** Each step locks the activation row, so two people acting at the same moment cannot both succeed; the second one gets 409.
+- **History.** Every step is stored in `ActivationEvents` (who, level, action, reason) and returned as `events` by `GET /activations/:activationId` and the list.
+
+Answers: `403` for a profile or user not allowed, `409` when the activation is not in the right state (the message says which state it is in), `400` for a missing reason.
+
+The old routes `PUT /activations/confirm/:activationId`, `PUT /activations/updatestatus/:activationId`, `PUT /carddetails/cardactivate/:carddetailId` and `PUT /carddetails/updatestatus/:actId` were removed: they changed approvals or activated cards without these rules.
 
 ## Project structure
 
@@ -206,7 +235,8 @@ server/
   models/               Sequelize models and Joi rules
   routes/               URLs
   seeders/              Starting data
-  services/             Token, password and activation number helpers
+  services/             Token, password, activation number helpers and the
+                        approval workflow (activationState, activationWorkflow)
   utils/catchAsync.js   Sends errors of async handlers to the error handler
 tests/                  Vitest and Supertest tests
 ```

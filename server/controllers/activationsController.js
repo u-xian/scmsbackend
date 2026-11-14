@@ -1,62 +1,71 @@
-const _ = require("lodash");
-const { Op } = require("sequelize");
+const Joi = require("joi");
 const Activations = require("../models").Activations;
+const ActivationEvents = require("../models").ActivationEvents;
 const Cardsdetails = require("../models").Cardsdetails;
 const Dealers = require("../models").Dealers;
 const Users = require("../models").Users;
 const Denominations = require("../models").Denominations;
 const { validate } = require("../models/activations");
-const generateActivationNumber = require("../services/generateActivationNumber");
+const { STATES, WHERE_STATE } = require("../services/activationState");
+const workflow = require("../services/activationWorkflow");
 const { catchAsyncController } = require("../utils/catchAsync");
+
+// History of the activation, oldest first, with the name of each user.
+const eventsInclude = {
+  model: ActivationEvents,
+  as: "events",
+  separate: true,
+  order: [["createdAt", "ASC"], ["id", "ASC"]],
+  include: [{ model: Users, as: "user", attributes: ["id", "name"] }],
+};
+
+const validateReject = (body) =>
+  Joi.object({
+    reason: Joi.string().trim().min(5).max(1000).required().messages({
+      "any.required": "A reason is required to reject an activation",
+      "string.empty": "A reason is required to reject an activation",
+      "string.min": "The reason must have at least 5 characters",
+    }),
+  }).validate(body);
+
+const validateResubmit = (body) =>
+  Joi.object({
+    comment: Joi.string().trim().max(1000).allow(""),
+  }).validate(body);
+
+const done = (res, statusMessage, activation) =>
+  res.status(200).json({
+    data: {
+      activId: activation.id,
+      state: activation.state,
+      status: 1,
+      statusMessage,
+    },
+  });
 
 const activationsCrontroller = {
   create: async (req, res) => {
     const { error } = validate(req.body);
     if (error) return res.status(400).send(error.details[0].message);
 
-    let activation = new Activations(_.pick(req.body, ["dealer_id", "userid"]));
-    activation = await activation.save();
-
-    if (!activation) return res.status(404).send("Activation  not found");
-
-    res.status(200).json({
-      data: {
-        activId: activation.id,
-        status: 1,
-        statusMessage: "Activation created!",
-      },
-    });
+    const activation = await workflow.submit(req.body, req.user);
+    done(res, "Activation created!", activation);
   },
+  /*
+    profileId 3 (accounting): activations waiting for level 2
+    profileId 4 (billing):    activations waiting for level 3
+    anything else:            all activations
+  */
   list: async (req, res) => {
     const profileID = Number(req.params.profileId);
-    let activData = {};
-
-    const lvl3data = {
-      [Op.or]: [{ confirmation_lvl2: 0 }, { confirmation_lvl3: 2 }],
-    };
-
-    const lvl4data = {
-      confirmation_lvl1: 1,
-      confirmation_lvl2: 1,
-      confirmation_lvl3: 0,
-    };
-
-    //Pending on Level 2
-    if (profileID === 3) {
-      activData = lvl3data;
-    }
-    //Pending on Level 3
-    if (profileID === 4) {
-      activData = lvl4data;
-    }
-    //all activations
-    if (profileID === 0) {
-      activData;
-    }
+    const where =
+      {
+        3: WHERE_STATE[STATES.PENDING_LEVEL2],
+        4: WHERE_STATE[STATES.PENDING_LEVEL3],
+      }[profileID] || {};
 
     const activations = await Activations.findAll({
-      //include: ["agents", "dealers"],
-      where: activData,
+      where,
       include: [
         {
           model: Users,
@@ -79,78 +88,69 @@ const activationsCrontroller = {
             },
           ],
         },
+        eventsInclude,
       ],
       order: [["createdAt", "DESC"]],
     });
-    if (!activations) return res.status(404).send("Activations  not found");
     res.status(200).json({ data: activations });
   },
   listById: async (req, res) => {
-    const activation = await Activations.findByPk(req.params.activationId);
+    const activation = await Activations.findByPk(req.params.activationId, {
+      include: [eventsInclude],
+    });
     if (!activation) return res.status(404).send("Activation  not found");
     res.status(200).json({ data: activation });
   },
+  // Only the dealer can change, and only while the activation is editable.
   update: async (req, res) => {
     const { error } = validate(req.body);
     if (error) return res.status(400).send(error.details[0].message);
 
-    let activation = await Activations.findByPk(req.params.activationId);
-    if (!activation) return res.status(404).send("Activation  not found");
-    await activation.update(req.body, { fields: Object.keys(req.body) });
+    await workflow.withEditableActivation(
+      req.params.activationId,
+      req.user,
+      (activation, transaction) =>
+        activation.update({ dealer_id: req.body.dealer_id }, { transaction }),
+    );
     res
       .status(200)
       .json({ data: { status: 1, statusMessage: "Activation updated!" } });
   },
-  updateConfirmation: async (req, res) => {
-    /*  0 -> not approved
-       1 -> approved
-       2 -> rejected */
+  approve: async (req, res) => {
+    const activation = await workflow.approve(
+      req.params.activationId,
+      req.user,
+    );
+    done(res, "Activation approved!", activation);
+  },
+  reject: async (req, res) => {
+    const { error, value } = validateReject(req.body);
+    if (error) return res.status(400).send(error.details[0].message);
 
-    const currentDate = new Date();
-    const level = Number(req.body.level);
-    const confirmStatus = req.body.confirmStatus === false ? 1 : 2;
-    let activation = await Activations.findByPk(req.params.activationId);
-    if (!activation) return res.status(404).send("Activation  not found");
-    if (level === 3) {
-      await activation.update({ confirmation_lvl2: confirmStatus });
-    }
-    if (level === 4 && confirmStatus === 2) {
-      await activation.update({ confirmation_lvl3: confirmStatus });
-    }
-    if (level === 4 && confirmStatus === 1) {
-      const currentDate = new Date();
-      const carddetails = await Cardsdetails.update(
-        { status: true, activated_at: currentDate },
-        {
-          where: {
-            act_id: req.params.activationId,
-          },
-        },
-      );
-      await activation.update({
-        status: confirmStatus,
-        confirmation_lvl3: confirmStatus,
-        activated_at: currentDate,
-      });
-    }
-    activation = await activation.save();
-    res
-      .status(200)
-      .json({ data: { status: 1, statusMessage: "Activation updated!" } });
+    const activation = await workflow.reject(
+      req.params.activationId,
+      req.user,
+      value.reason,
+    );
+    done(res, "Activation rejected!", activation);
   },
-  updateStatus: async (req, res) => {
-    let activation = await Activations.findByPk(req.params.activationId);
-    if (!activation) return res.status(404).send("Activation  not found");
-    await activation.update({ status: req.body.status });
-    activation = await activation.save();
-    res
-      .status(200)
-      .json({ data: { status: 1, statusMessage: "Activation updated!" } });
+  resubmit: async (req, res) => {
+    const { error, value } = validateResubmit(req.body);
+    if (error) return res.status(400).send(error.details[0].message);
+
+    const activation = await workflow.resubmit(
+      req.params.activationId,
+      req.user,
+      value.comment,
+    );
+    done(res, "Activation sent again!", activation);
   },
   delete: async (req, res) => {
-    let activation = await Activations.findByPk(req.params.activationId);
-    if (!activation) return res.status(404).send("Activation  not found");
-    await activation.destroy();
+    await workflow.withEditableActivation(
+      req.params.activationId,
+      req.user,
+      (activation, transaction) => activation.destroy({ transaction }),
+    );
     res.status(204).send("Activation deleted");
   },
 };
