@@ -9,11 +9,11 @@ const generateActivationNumber = () => {
   for (let i = 1; i <= length; i++) {
     output += letters.substring(
       (random = Math.floor(Math.random() * letters.length)),
-      random + 1
+      random + 1,
     );
   }
 
-  return "SCMS" + dateFormat(new Date(), "yyyymmddhhMMss") + output;
+  return "SCMS" + dateFormat(new Date(), "yyyymmddHHMMss") + output;
 };
 
 module.exports = generateActivationNumber;

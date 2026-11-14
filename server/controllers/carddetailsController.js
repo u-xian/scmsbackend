@@ -7,6 +7,16 @@ const cardsdetailsCrontroller = {
     const { error } = validate(req.body);
     if (error) return res.status(400).send(error.details[0].message);
 
+    const card = await Cardsdetails.findFirst({
+      where: {
+        batch: req.body.batch,
+        start_serialnumber: req.body.start_serialnumber,
+        end_serialnumber: req.body.end_serialnumber,
+      },
+    });
+
+    if (card) return res.status(404).json({ error: "Card already exists" });
+
     let carddetails = new Cardsdetails(
       _.pick(req.body, [
         "batch",
@@ -16,7 +26,7 @@ const cardsdetailsCrontroller = {
         "cards",
         "denom_id",
         "act_id",
-      ])
+      ]),
     );
 
     carddetails.status = false;
@@ -47,7 +57,7 @@ const cardsdetailsCrontroller = {
 
     let carddetails = await Cardsdetails.findByPk(req.params.carddetailId);
     if (!carddetails) return res.status(404).send("Card details  not found");
-    carddetails.update(req.body, { fields: Object.keys(req.body) });
+    await carddetails.update(req.body, { fields: Object.keys(req.body) });
     res
       .status(200)
       .json({ data: { status: 1, statusMessage: "Card details updated!" } });
@@ -56,7 +66,7 @@ const cardsdetailsCrontroller = {
     const currentDate = new Date();
     let carddetails = await Cardsdetails.findByPk(req.params.carddetailId);
     if (!carddetails) return res.status(404).send("Card details  not found");
-    carddetails.update({ status: true, activated_at: currentDate });
+    await carddetails.update({ status: true, activated_at: currentDate });
     carddetails = await carddetails.save();
     res
       .status(200)
@@ -70,7 +80,7 @@ const cardsdetailsCrontroller = {
         where: {
           act_id: req.params.actId,
         },
-      }
+      },
     );
     res
       .status(200)
@@ -79,7 +89,7 @@ const cardsdetailsCrontroller = {
   delete: async (req, res) => {
     let carddetails = await Cardsdetails.findByPk(req.params.carddetailId);
     if (!carddetails) return res.status(404).send("Card details  not found");
-    carddetails.destroy();
+    await carddetails.destroy();
     res.status(204).send("Card details deleted");
   },
 

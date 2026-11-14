@@ -27,7 +27,7 @@ const mailreceiversCrontroller = {
   },
   listById: async (req, res) => {
     const mailreceiver = await Mailreceivers.findByPk(
-      req.params.mailreceiverId
+      req.params.mailreceiverId,
     );
     if (!mailreceiver) return res.status(404).send("Mailreceiver  not found");
     res.status(200).json({ data: mailreceiver });
@@ -37,7 +37,7 @@ const mailreceiversCrontroller = {
     if (error) return res.status(400).send(error.details[0].message);
     let mailreceiver = await Mailreceivers.findByPk(req.params.mailreceiverId);
     if (!mailreceiver) return res.status(404).send("Mailreceiver  not found");
-    mailreceiver.update(req.body, { fields: Object.keys(req.body) });
+    await mailreceiver.update(req.body, { fields: Object.keys(req.body) });
     res
       .status(200)
       .json({ data: { status: 1, statusMessage: "Mailreceiver updated!" } });
@@ -45,7 +45,7 @@ const mailreceiversCrontroller = {
   updateStatus: async (req, res) => {
     let mailreceiver = await Mailreceivers.findByPk(req.params.mailreceiverId);
     if (!mailreceiver) return res.status(404).send("Mailreceiver  not found");
-    mailreceiver.update({ status: req.body.status });
+    await mailreceiver.update({ status: req.body.status });
     mailreceiver = await mailreceiver.save();
     res
       .status(200)
@@ -54,7 +54,7 @@ const mailreceiversCrontroller = {
   delete: async (req, res) => {
     let mailreceiver = await Mailreceivers.findByPk(req.params.mailreceiverId);
     if (!mailreceiver) return res.status(404).send("Mailreceiver  not found");
-    mailreceiver.destroy();
+    await mailreceiver.destroy();
     res.status(204).send("Mailreceiver deleted");
   },
 };

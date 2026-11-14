@@ -1,6 +1,7 @@
 "use strict";
 const { Model } = require("sequelize");
 const Joi = require("joi");
+const generateActivationNumber = require("../services/generateActivationNumber");
 module.exports = (sequelize, DataTypes) => {
   class Activations extends Model {
     /**
@@ -28,7 +29,12 @@ module.exports = (sequelize, DataTypes) => {
       sequelize,
       paranoid: true,
       modelName: "Activations",
-    }
+      hooks: {
+        beforeCreate: (activation) => {
+          activation.actno = generateActivationNumber();
+        },
+      },
+    },
   );
   return Activations;
 };

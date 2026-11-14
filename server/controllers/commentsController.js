@@ -43,7 +43,7 @@ const commentsCrontroller = {
     if (error) return res.status(400).send(error.details[0].message);
     let comment = await Comments.findByPk(req.params.commentId);
     if (!comment) return res.status(404).send("Comment  not found");
-    comment.update(req.body, { fields: Object.keys(req.body) });
+    await comment.update(req.body, { fields: Object.keys(req.body) });
     res
       .status(200)
       .json({ data: { status: 1, statusMessage: "Comment updated!" } });

@@ -60,7 +60,7 @@ const accessmenusCrontroller = {
     if (error) return res.status(400).send(error.details[0].message);
     let accessmenu = await AccessMenu.findByPk(req.params.accessmenuId);
     if (!accessmenu) return res.status(404).send("Access Menu  not found");
-    accessmenu.update(req.body, { fields: Object.keys(req.body) });
+    await accessmenu.update(req.body, { fields: Object.keys(req.body) });
     res
       .status(200)
       .json({ data: { status: 1, statusMessage: "Access Menu updated!" } });
@@ -77,7 +77,7 @@ const accessmenusCrontroller = {
   delete: async (req, res) => {
     let accessmenu = await AccessMenu.findByPk(req.params.accessmenuId);
     if (!accessmenu) return res.status(404).send("Access Menu  not found");
-    accessmenu.destroy();
+    await accessmenu.destroy();
     res.status(204).send("Access Menu deleted");
   },
 };

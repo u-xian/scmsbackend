@@ -24,7 +24,7 @@ const usersCrontroller = {
         "occupation",
         "location",
         "profil_id",
-      ])
+      ]),
     );
     const currentDate = new Date(); // Now
     const expiringDate = currentDate.setDate(currentDate.getDate() + 30);
@@ -62,7 +62,7 @@ const usersCrontroller = {
 
     let user = await Users.findByPk(req.params.userId);
     if (!user) return res.status(404).send("User  not found");
-    user.update(req.body, { fields: Object.keys(req.body) });
+    await user.update(req.body, { fields: Object.keys(req.body) });
     res
       .status(200)
       .json({ data: { status: 1, statusMessage: "User updated!" } });
@@ -70,7 +70,7 @@ const usersCrontroller = {
   updateStatus: async (req, res) => {
     let user = await Users.findByPk(req.params.userId);
     if (!user) return res.status(404).send("User  not found");
-    user.update({ status: req.body.status });
+    await user.update({ status: req.body.status });
     user = await user.save();
     res
       .status(200)
@@ -79,7 +79,7 @@ const usersCrontroller = {
   delete: async (req, res) => {
     let user = await Users.findByPk(req.params.userId);
     if (!user) return res.status(404).send("user  not found");
-    user.destroy();
+    await user.destroy();
     res.status(204).send("user deleted");
   },
 };

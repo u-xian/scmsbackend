@@ -32,7 +32,7 @@ const dealersCrontroller = {
     if (error) return res.status(400).send(error.details[0].message);
     let dealer = await Dealers.findByPk(req.params.dealerId);
     if (!dealer) return res.status(404).send("Dealer  not found");
-    dealer.update(req.body, { fields: Object.keys(req.body) });
+    await dealer.update(req.body, { fields: Object.keys(req.body) });
     res
       .status(200)
       .json({ data: { status: 1, statusMessage: "Dealer updated!" } });
@@ -40,7 +40,7 @@ const dealersCrontroller = {
   updateStatus: async (req, res) => {
     let dealer = await Dealers.findByPk(req.params.dealerId);
     if (!dealer) return res.status(404).send("Dealer  not found");
-    dealer.update({ status: req.body.status });
+    await dealer.update({ status: req.body.status });
     dealer = await dealer.save();
     res
       .status(200)
@@ -49,7 +49,7 @@ const dealersCrontroller = {
   delete: async (req, res) => {
     let dealer = await Dealers.findByPk(req.params.dealerId);
     if (!dealer) return res.status(404).send("Dealer  not found");
-    dealer.destroy();
+    await dealer.destroy();
     res.status(204).send("Dealer deleted");
   },
 };

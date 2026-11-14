@@ -24,19 +24,19 @@ const authCrontroller = {
 
     let user = await Users.findOne({ where: { username: req.body.username } });
     if (!user)
-      return res.status(200).json({
+      return res.status(401).json({
         status: statusResponse,
-        statusMessage: "Invalid username or password!",
+        statusMessage: "Invalid username!",
       });
 
     const validatePassword = await bcrypt.compare(
       req.body.password,
-      user.password
+      user.password,
     );
     if (!validatePassword)
-      return res.status(200).json({
+      return res.status(401).json({
         status: statusResponse,
-        statusMessage: "Invalid username or password!",
+        statusMessage: "Invalid password!",
       });
     if (user.first_login_flag === true) {
       return res.status(200).json({
@@ -79,7 +79,7 @@ const authCrontroller = {
       first_login_flag: user.first_login_flag,
       usermenus: menus,
       userdefaultmenu: defaultmenu,
-      resetType : 4,
+      resetType: 4,
     };
     res
       .status(200)
@@ -105,9 +105,9 @@ const authCrontroller = {
     const normalResetData = {
       password: encryptPwd,
     };
-    if (resetType === 2) user.update(firstLoginData);
-    if (resetType === 3) user.update(expirationData);
-    if (resetType === 4) user.update(normalResetData);
+    if (resetType === 2) await user.update(firstLoginData);
+    if (resetType === 3) await user.update(expirationData);
+    if (resetType === 4) await user.update(normalResetData);
 
     user = await user.save();
     res

@@ -28,7 +28,7 @@ const denominationsCrontroller = {
   },
   listById: async (req, res) => {
     const denomination = await Denominations.findByPk(
-      req.params.denominationId
+      req.params.denominationId,
     );
     if (!denomination) return res.status(404).send("Denomination  not found");
     res.status(200).json({ data: denomination });
@@ -38,7 +38,7 @@ const denominationsCrontroller = {
     if (error) return res.status(400).send(error.details[0].message);
     let denomination = await Denominations.findByPk(req.params.denominationId);
     if (!denomination) return res.status(404).send("Denomination  not found");
-    denomination.update(req.body, { fields: Object.keys(req.body) });
+    await denomination.update(req.body, { fields: Object.keys(req.body) });
     res
       .status(200)
       .json({ data: { status: 1, statusMessage: "Denomination updated!" } });
@@ -46,7 +46,7 @@ const denominationsCrontroller = {
   updateStatus: async (req, res) => {
     let denomination = await Denominations.findByPk(req.params.denominationId);
     if (!denomination) return res.status(404).send("Denomination  not found");
-    denomination.update({ status: req.body.status });
+    await denomination.update({ status: req.body.status });
     denomination = await denomination.save();
     res
       .status(200)
@@ -55,7 +55,7 @@ const denominationsCrontroller = {
   delete: async (req, res) => {
     let denomination = await Denominations.findByPk(req.params.denominationId);
     if (!denomination) return res.status(404).send("Denomination  not found");
-    denomination.destroy();
+    await denomination.destroy();
     res.status(204).send("Denomination deleted");
   },
 };

@@ -14,9 +14,6 @@ const activationsCrontroller = {
     if (error) return res.status(400).send(error.details[0].message);
 
     let activation = new Activations(_.pick(req.body, ["dealer_id", "userid"]));
-    Activations.addHook("beforeSave", (activation, options) => {
-      activation.actno = generateActivationNumber();
-    });
     activation = await activation.save();
 
     if (!activation) return res.status(404).send("Activation  not found");
@@ -98,7 +95,7 @@ const activationsCrontroller = {
 
     let activation = await Activations.findByPk(req.params.activationId);
     if (!activation) return res.status(404).send("Activation  not found");
-    activation.update(req.body, { fields: Object.keys(req.body) });
+    await activation.update(req.body, { fields: Object.keys(req.body) });
     res
       .status(200)
       .json({ data: { status: 1, statusMessage: "Activation updated!" } });
@@ -117,7 +114,7 @@ const activationsCrontroller = {
       activation.update({ confirmation_lvl2: confirmStatus });
     }
     if (level === 4 && confirmStatus === 2) {
-      activation.update({ confirmation_lvl3: confirmStatus });
+      await activation.update({ confirmation_lvl3: confirmStatus });
     }
     if (level === 4 && confirmStatus === 1) {
       const currentDate = new Date();
@@ -127,9 +124,9 @@ const activationsCrontroller = {
           where: {
             act_id: req.params.activationId,
           },
-        }
+        },
       );
-      activation.update({
+      await activation.update({
         status: confirmStatus,
         confirmation_lvl3: confirmStatus,
         activated_at: currentDate,
@@ -143,7 +140,7 @@ const activationsCrontroller = {
   updateStatus: async (req, res) => {
     let activation = await Activations.findByPk(req.params.activationId);
     if (!activation) return res.status(404).send("Activation  not found");
-    activation.update({ status: req.body.status });
+    await activation.update({ status: req.body.status });
     activation = await activation.save();
     res
       .status(200)
@@ -152,7 +149,7 @@ const activationsCrontroller = {
   delete: async (req, res) => {
     let activation = await Activations.findByPk(req.params.activationId);
     if (!activation) return res.status(404).send("Activation  not found");
-    activation.destroy();
+    await activation.destroy();
     res.status(204).send("Activation deleted");
   },
 };
