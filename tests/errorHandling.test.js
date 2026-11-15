@@ -37,6 +37,31 @@ describe("errors no longer stop the server", () => {
     log.mockRestore();
   });
 
+  it("answers 500 when the database fails while checking the token", async () => {
+    const token = await admin();
+    const spy = vi.spyOn(db.Users, "findByPk").mockRejectedValueOnce(new Error("db down"));
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await api().get("/api/v1/dealers").set("x-auth-token", token);
+    expect(res.status).toBe(500);
+    expect(res.text).toBe("Internal server error");
+    spy.mockRestore();
+    log.mockRestore();
+  });
+
+  it("refuses any step on an activation whose data is inconsistent", async () => {
+    const token = await admin();
+    const created = await api().post("/api/v1/activations").set("x-auth-token", token).send({ dealer_id: 1 });
+    const id = created.body.data.activId;
+    // Not a state the API can produce: level 2 approved but never sent.
+    await db.Activations.update({ confirmation_lvl1: 0, confirmation_lvl2: 1 }, { where: { id } });
+
+    const view = await api().get(`/api/v1/activations/${id}`).set("x-auth-token", token);
+    expect(view.body.data.state).toBeNull();
+    const res = await api().put(`/api/v1/activations/submit/${id}`).set("x-auth-token", token);
+    expect(res.status).toBe(409);
+    expect(res.text).toBe("The activation is in an unexpected state");
+  });
+
   it("answers 400 to a malformed JSON body", async () => {
     const res = await api()
       .post("/api/v1/dealers")

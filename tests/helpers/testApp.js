@@ -19,7 +19,8 @@ const { PROFILES } = require("../../server/middleware/requireProfile");
 
 db.sequelize.options.logging = false;
 
-// Every user made by the tests starts with this prefix, so they can be removed.
+// Every record made by the tests (usernames, dealer names, labels, ...)
+// starts with this prefix, so it can be removed afterwards.
 const TEST_PREFIX = "zztest_";
 
 // Token of an existing user, as POST /auth would give it.
@@ -61,6 +62,28 @@ async function tokenFor(profileId) {
   return tokenForUser(user);
 }
 
+// Creates an active user with the given profile; returns the user, their
+// token and request helpers that send the token, e.g. admin.get("/dealers").
+async function loginAs(profileId, fields = {}) {
+  const { user, password } = await createUser({ profil_id: profileId, ...fields });
+  const token = tokenForUser(user);
+  const call = (method) => (path) =>
+    request(app)[method](`/api/v1${path}`).set("x-auth-token", token);
+  return {
+    user,
+    password,
+    token,
+    get: call("get"),
+    post: call("post"),
+    put: call("put"),
+    delete: call("delete"),
+  };
+}
+
+// Unique name with the test prefix.
+const uniqueName = (label = "") =>
+  `${TEST_PREFIX}${label}${Math.random().toString(36).slice(2, 8)}`;
+
 async function cleanUp() {
   const testUsers = await db.Users.findAll({
     where: { username: { [Op.startsWith]: TEST_PREFIX } },
@@ -83,6 +106,21 @@ async function cleanUp() {
     where: { batch: { [Op.startsWith]: TEST_PREFIX } },
     force: true,
   });
+
+  const prefixed = (field) => ({ [field]: { [Op.startsWith]: TEST_PREFIX } });
+  await db.Comments.destroy({
+    where: {
+      [Op.or]: [
+        prefixed("comment_text"),
+        { userid: testUsers.map((u) => u.id) },
+      ],
+    },
+  });
+  await db.Dealers.destroy({ where: prefixed("dealername") });
+  await db.Denominations.destroy({ where: prefixed("label") });
+  await db.Mailreceivers.destroy({ where: prefixed("names") });
+  await db.Profiles.destroy({ where: prefixed("profilename") });
+  await db.AccessMenu.destroy({ where: prefixed("pathname") });
 }
 
 module.exports = {
@@ -93,5 +131,7 @@ module.exports = {
   tokenFor,
   tokenForUser,
   createUser,
+  loginAs,
+  uniqueName,
   cleanUp,
 };

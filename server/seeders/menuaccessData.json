@@ -1,0 +1,65 @@
+[
+  {
+    "pathname": "home",
+    "description": "Dashboard",
+    "accessLevel": [1, 3, 4],
+    "menuIcon": "ni ni-tv-2 text-primary",
+    "defaultMenuItem": true
+  },
+  {
+    "pathname": "activations",
+    "description": "Activations",
+    "accessLevel": [1, 3, 4],
+    "menuIcon": "ni ni-planet text-orange",
+    "defaultMenuItem": false
+  },
+  {
+    "pathname": "carddetails",
+    "description": "Carddetails",
+    "accessLevel": [1, 3, 4],
+    "menuIcon": "ni ni-pin-3 text-primary",
+    "defaultMenuItem": false
+  },
+  {
+    "pathname": "dealers",
+    "description": "Dealers",
+    "accessLevel": [1],
+    "menuIcon": "ni ni-single-02 text-yellow",
+    "defaultMenuItem": false
+  },
+  {
+    "pathname": "denominations",
+    "description": "Denominations",
+    "accessLevel": [1],
+    "menuIcon": "ni ni-bullet-list-67 text-default",
+    "defaultMenuItem": false
+  },
+  {
+    "pathname": "mailreceiver",
+    "description": "Mail Receivers",
+    "accessLevel": [1],
+    "menuIcon": "ni ni-key-25 text-info",
+    "defaultMenuItem": false
+  },
+  {
+    "pathname": "menuaccess",
+    "description": "Menu Access",
+    "accessLevel": [1],
+    "menuIcon": "ni ni-key-25 text-info",
+    "defaultMenuItem": false
+  },
+  {
+    "pathname": "profiles",
+    "description": "Profiles",
+    "accessLevel": [1],
+    "menuIcon": "ni ni-key-25 text-info",
+    "defaultMenuItem": false
+  },
+  {
+    "pathname": "pos",
+    "description": "POS",
+    "accessLevel": [2],
+    "menuIcon": "ni ni-circle-08 text-pink",
+    "defaultMenuItem": true
+  }
+]
